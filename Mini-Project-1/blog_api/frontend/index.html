@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Blog</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <a href="#" class="logo">
+                <i class="fas fa-book-open"></i>
+                Modern Blog
+            </a>
+        </div>
+        <div class="header-actions">
+            <button class="theme-toggle" id="themeToggle">
+                <i class="fas fa-sun" id="themeIcon"></i>
+            </button>
+            <button class="new-post-btn" id="newPostBtn">
+                <i class="fas fa-plus"></i>
+                New Post
+            </button>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <!-- Main Content -->
+        <main class="content-area">
+            <!-- Search Bar -->
+            <div class="search-container">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" class="search-input" id="searchInput" placeholder="Search posts...">
+                <button class="clear-search" id="clearSearch" style="display: none;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <!-- Category Filters -->
+            <div class="filters" id="categoryFilters">
+                <button class="filter-btn active" data-category="all">
+                    <i class="fas fa-filter"></i>
+                    All Posts
+                    <span class="category-count">0</span>
+                </button>
+            </div>
+
+            <!-- Loading State -->
+            <div class="loading" id="loadingState">
+                <i class="fas fa-spinner fa-spin"></i>
+                Loading posts...
+            </div>
+
+            <!-- Posts Grid -->
+            <div class="posts-grid" id="postsGrid">
+                <!-- Posts will be populated by JavaScript -->
+            </div>
+
+            <!-- Empty State -->
+            <div class="empty-state" id="emptyState" style="display: none;">
+                <i class="fas fa-book-open"></i>
+                <h3>No posts found</h3>
+                <p>Try adjusting your search or filter criteria.</p>
+            </div>
+        </main>
+
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <!-- Blog Stats -->
+            <div class="stats-section">
+                <h2>Blog Stats</h2>
+                <div class="stats-grid">
+                    <div class="stat-card primary">
+                        <div class="stat-value" id="totalPosts">0</div>
+                        <div class="stat-label">Total Posts</div>
+                    </div>
+                    <div class="stat-card secondary">
+                        <div class="stat-value" id="totalViews">0</div>
+                        <div class="stat-label">Total Views</div>
+                    </div>
+                    <div class="stat-card success">
+                        <div class="stat-value" id="totalCategories">0</div>
+                        <div class="stat-label">Categories</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="actions-section">
+                <h2>Quick Actions</h2>
+                <div class="action-buttons">
+                    <button class="action-btn" id="refreshPosts">
+                        <i class="fas fa-refresh"></i>
+                        Refresh Posts
+                    </button>
+                    <button class="action-btn" id="clearSearchBtn">
+                        <i class="fas fa-times"></i>
+                        Clear Search
+                    </button>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="activity-section">
+                <h2>Recent Activity</h2>
+                <div class="activity-list" id="activityList">
+                    <!-- Activity items will be populated by JavaScript -->
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Modal for Creating/Editing Posts -->
+    <div class="modal" id="postModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Create New Post</h3>
+                <button class="modal-close" id="modalClose">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="postForm" class="modal-body">
+                <div class="form-group">
+                    <label for="postTitle">Title</label>
+                    <input type="text" id="postTitle" required>
+                </div>
+                <div class="form-group">
+                    <label for="postCategory">Category</label>
+                    <select id="postCategory" required>
+                        <option value="">Select Category</option>
+                        <option value="tech">Technology</option>
+                        <option value="design">Design</option>
+                        <option value="business">Business</option>
+                        <option value="lifestyle">Lifestyle</option>
+                        <option value="education">Education</option>
+                        <option value="entertainment">Entertainment</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="postImage">Image (Optional)</label>
+                    <input type="file" id="postImage" accept="image/*">
+                    <div class="image-preview" id="imagePreview" style="display: none;">
+                        <img id="previewImg" src="" alt="Preview">
+                        <button type="button" class="remove-image" id="removeImage">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="postExcerpt">Excerpt (Optional)</label>
+                    <textarea id="postExcerpt" rows="3" placeholder="Short description of the post"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="postContent">Content</label>
+                    <textarea id="postContent" rows="8" required></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-cancel" id="cancelBtn">Cancel</button>
+                    <button type="submit" class="btn-submit" id="submitBtn">Create Post</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Blog View Modal -->
+    <div class="blog-modal" id="blogModal"></div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
