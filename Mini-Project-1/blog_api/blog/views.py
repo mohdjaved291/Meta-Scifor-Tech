@@ -12,6 +12,21 @@ from django.conf import settings
 import os
 
 
+def frontend_view(request):
+    """Serve the frontend HTML file"""
+    try:
+        static_path = os.path.join(
+            settings.BASE_DIR, "static", "frontend", "index.html"
+        )
+        with open(static_path, "r", encoding="utf-8") as f:
+            html_content = f.read()
+        return HttpResponse(html_content, content_type="text/html")
+    except FileNotFoundError:
+        return HttpResponse(
+            "<h1>Frontend not found</h1><p>Please ensure frontend files are in static/frontend/</p>"
+        )
+
+
 class PostViewSet(viewsets.ModelViewSet):
     queryset = Post.objects.filter(is_published=True)
     serializer_class = PostSerializer
@@ -165,53 +180,3 @@ class PostViewSet(viewsets.ModelViewSet):
 
         serializer = BlogStatsSerializer(stats_data)
         return Response(serializer.data)
-
-
-def frontend_view(request):
-    """Serve the frontend HTML file"""
-    try:
-        # Try to get from static files directory
-        if hasattr(settings, "STATICFILES_DIRS") and settings.STATICFILES_DIRS:
-            html_path = os.path.join(
-                settings.STATICFILES_DIRS[0], "frontend", "index.html"
-            )
-        else:
-            html_path = os.path.join(
-                settings.BASE_DIR, "static", "frontend", "index.html"
-            )
-
-        # If that doesn't exist, try the collected static files path
-        if (
-            not os.path.exists(html_path)
-            and hasattr(settings, "STATIC_ROOT")
-            and settings.STATIC_ROOT
-        ):
-            html_path = os.path.join(settings.STATIC_ROOT, "frontend", "index.html")
-
-        with open(html_path, "r", encoding="utf-8") as f:
-            html_content = f.read()
-
-        return HttpResponse(html_content, content_type="text/html")
-    except FileNotFoundError:
-        return HttpResponse(
-            f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Frontend Not Found</title>
-        </head>
-        <body>
-            <h1>Frontend not found</h1>
-            <p>Frontend files not found. Please check the following:</p>
-            <ol>
-                <li>Make sure frontend files are in the static/frontend directory</li>
-                <li>Run: <code>python manage.py collectstatic --noinput</code></li>
-                <li>Check that STATICFILES_DIRS is configured in settings.py</li>
-            </ol>
-            <p>Looking for: {html_path}</p>
-            <p><a href="/api/posts/">API Endpoint</a></p>
-        </body>
-        </html>
-        """,
-            status=404,
-        )
