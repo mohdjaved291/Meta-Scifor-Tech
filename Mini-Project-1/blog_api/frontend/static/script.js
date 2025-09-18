@@ -4,9 +4,9 @@ Integrates with Django REST API backend - FIXED VERSION
 */
 
 // API Configuration
-const API_URL = 'http://127.0.0.1:8000/api/posts/';
-const CATEGORIES_URL = 'http://127.0.0.1:8000/api/posts/categories/';
-const STATS_URL = 'http://127.0.0.1:8000/api/posts/stats/';
+const API_URL = 'https://mohdjaved25.pythonanywhere.com/api/posts/';
+const CATEGORIES_URL = 'https://mohdjaved25.pythonanywhere.com/api/posts/categories/';
+const STATS_URL = 'https://mohdjaved25.pythonanywhere.com/api/posts/stats/';
 
 // Global state
 let currentPosts = [];
