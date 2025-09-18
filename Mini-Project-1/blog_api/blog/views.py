@@ -6,7 +6,10 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from .models import Post
 from .serializers import PostSerializer, CategoryStatsSerializer, BlogStatsSerializer
-
+from django.shortcuts import render
+from django.http import HttpResponse
+from django.conf import settings
+import os
 
 class PostViewSet(viewsets.ModelViewSet):
     queryset = Post.objects.filter(is_published=True)
@@ -161,3 +164,24 @@ class PostViewSet(viewsets.ModelViewSet):
 
         serializer = BlogStatsSerializer(stats_data)
         return Response(serializer.data)
+
+    def frontend_view(request):
+        """Serve the frontend HTML file"""
+        try:
+            # First try to get from static files directory
+            html_path = os.path.join(settings.STATICFILES_DIRS[0], 'frontend', 'index.html')
+            
+            # If that doesn't exist, try the collected static files path
+            if not os.path.exists(html_path) and hasattr(settings, 'STATIC_ROOT'):
+                html_path = os.path.join(settings.STATIC_ROOT, 'frontend', 'index.html')
+            
+            with open(html_path, 'r', encoding='utf-8') as f:
+                html_content = f.read()
+            
+            return HttpResponse(html_content, content_type='text/html')
+        except FileNotFoundError:
+            return HttpResponse("""
+            <h1>Frontend not found</h1>
+            <p>Please run: <code>python manage.py collectstatic --noinput</code></p>
+            <p>Also make sure frontend files are in the static/frontend directory.</p>
+            """, status=404)
