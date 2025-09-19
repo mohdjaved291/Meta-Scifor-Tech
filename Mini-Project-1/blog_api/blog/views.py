@@ -1,4 +1,6 @@
 from django.db.models import Q, Sum
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -27,6 +29,7 @@ def frontend_view(request):
         )
 
 
+@method_decorator(csrf_exempt, name="dispatch")
 class PostViewSet(viewsets.ModelViewSet):
     queryset = Post.objects.filter(is_published=True)
     serializer_class = PostSerializer
