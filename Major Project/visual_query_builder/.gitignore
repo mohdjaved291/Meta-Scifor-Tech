@@ -1,0 +1,171 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Django specific
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+static/
+query_builder.log
+django.log
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.sublime-project
+.sublime-workspace
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Node.js (for React frontend)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+visual-query-builder-frontend/node_modules/
+visual-query-builder-frontend/build/
+visual-query-builder-frontend/dist/
+visual-query-builder-frontend/.env
+visual-query-builder-frontend/.env.local
+visual-query-builder-frontend/.env.development.local
+visual-query-builder-frontend/.env.test.local
+visual-query-builder-frontend/.env.production.local
+
+# Package files
+*.tar.gz
+*.zip
+
+# Coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# Machine Learning models
+*.pkl
+*.model
+*.h5
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+.temp/
+
+# Backup files
+*.bak
+*.backup
+
+# API keys and secrets (additional safety)
+secrets.json
+config.json
+credentials.json
+
+# Production settings
+production_settings.py
+local_production_settings.py
+
+# Deployment files
+.deployment
+.deploy/
+
+# Docker
+.dockerignore
+Dockerfile
+docker-compose.yml
+
+# Local configuration
+local_config.py
+local_settings.py
