@@ -31,6 +31,12 @@ db.sqlite3-journal
 media/
 staticfiles/
 static/
+!static/static/
+!static/index.html  
+!static/manifest.json
+!static/favicon.ico
+!static/robots.txt
+
 query_builder.log
 django.log
 
@@ -154,7 +160,6 @@ config.json
 credentials.json
 
 # Production settings
-production_settings.py
 local_production_settings.py
 
 # Deployment files
