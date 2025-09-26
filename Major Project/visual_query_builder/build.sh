@@ -67,7 +67,6 @@ fi
 echo "Running Django system checks..."
 python manage.py check --settings=visual_query_builder.render_settings
 
-
 # Collect static files
 echo "Collecting static files..."
 python manage.py collectstatic --noinput --settings=visual_query_builder.render_settings
@@ -75,5 +74,26 @@ python manage.py collectstatic --noinput --settings=visual_query_builder.render_
 # Run database migrations
 echo "Running database migrations..."
 python manage.py migrate --settings=visual_query_builder.render_settings
+
+# Create superuser if it doesn't exist
+echo "Creating admin superuser..."
+python manage.py shell --settings=visual_query_builder.render_settings << 'EOF'
+from django.contrib.auth.models import User
+import os
+
+username = os.environ.get('ADMIN_USERNAME', 'admin')
+email = os.environ.get('ADMIN_EMAIL', 'admin@example.com')
+password = os.environ.get('ADMIN_PASSWORD', 'admin123')
+
+if not User.objects.filter(username=username).exists():
+    User.objects.create_superuser(username, email, password)
+    print(f"✅ Superuser created successfully!")
+    print(f"Username: {username}")
+    print(f"Email: {email}")
+    print(f"Password: {password}")
+else:
+    print(f"ℹ️ Superuser '{username}' already exists")
+    print(f"Use existing credentials to login to /admin/")
+EOF
 
 echo "Build completed successfully!"
