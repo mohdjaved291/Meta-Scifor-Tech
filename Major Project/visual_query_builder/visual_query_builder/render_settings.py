@@ -127,17 +127,48 @@ REST_FRAMEWORK = {
     ],
 }
 
-# CORS configuration
+# CORS configuration - FIXED
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "")
+
+# Allow all origins in DEBUG mode, specific origins in production
 CORS_ALLOW_ALL_ORIGINS = DEBUG
+
+# Production CORS settings
 CORS_ALLOWED_ORIGINS = [
-    f"https://{RENDER_EXTERNAL_HOSTNAME}" if RENDER_EXTERNAL_HOSTNAME else "",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "https://meta-scifor-tech.onrender.com",  # Your frontend URL
 ]
 
-# Remove empty strings
-CORS_ALLOWED_ORIGINS = [origin for origin in CORS_ALLOWED_ORIGINS if origin]
+# Add frontend URL from environment variable if provided
+if FRONTEND_URL:
+    CORS_ALLOWED_ORIGINS.append(FRONTEND_URL)
 
+# Remove empty strings and duplicates
+CORS_ALLOWED_ORIGINS = list(set([origin for origin in CORS_ALLOWED_ORIGINS if origin]))
+
+# Essential CORS settings for cross-domain requests
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+]
+
+CORS_ALLOW_METHODS = [
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+]
 # Security settings for production
 if not DEBUG:
     SECURE_BROWSER_XSS_FILTER = True
