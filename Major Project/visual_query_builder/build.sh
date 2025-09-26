@@ -63,6 +63,11 @@ else
 </html>' > templates/index.html
 fi
 
+# Add system check
+echo "Running Django system checks..."
+python manage.py check --settings=visual_query_builder.render_settings
+
+
 # Collect static files
 echo "Collecting static files..."
 python manage.py collectstatic --noinput --settings=visual_query_builder.render_settings
