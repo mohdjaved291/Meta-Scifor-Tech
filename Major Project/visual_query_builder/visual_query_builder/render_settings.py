@@ -127,25 +127,29 @@ REST_FRAMEWORK = {
     ],
 }
 
-# CORS configuration - FIXED
+# CORS configuration - FIXED (Remove trailing slashes)
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "")
 
 # Allow all origins in DEBUG mode, specific origins in production
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 
-# Production CORS settings
+# Production CORS settings - NO TRAILING SLASHES
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "https://meta-scifor-tech.onrender.com",  # Your frontend URL
+    "https://meta-scifor-tech.onrender.com",  # NO trailing slash
 ]
 
 # Add frontend URL from environment variable if provided
 if FRONTEND_URL:
-    CORS_ALLOWED_ORIGINS.append(FRONTEND_URL)
+    # Remove trailing slash if present
+    frontend_url = FRONTEND_URL.rstrip("/")
+    CORS_ALLOWED_ORIGINS.append(frontend_url)
 
-# Remove empty strings and duplicates
-CORS_ALLOWED_ORIGINS = list(set([origin for origin in CORS_ALLOWED_ORIGINS if origin]))
+# Remove empty strings and duplicates, ensure no trailing slashes
+CORS_ALLOWED_ORIGINS = list(
+    set([origin.rstrip("/") for origin in CORS_ALLOWED_ORIGINS if origin])
+)
 
 # Essential CORS settings for cross-domain requests
 CORS_ALLOW_CREDENTIALS = True
