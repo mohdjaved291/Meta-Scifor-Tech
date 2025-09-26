@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: visual-query-builder-backend
+    env: python
+    buildCommand: chmod +x build_backend_only.sh && ./build_backend_only.sh
+    startCommand: gunicorn visual_query_builder.wsgi:application
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DJANGO_SETTINGS_MODULE
+        value: visual_query_builder.render_settings
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: False
+      - key: ADMIN_PASSWORD
+        generateValue: true
+    disk:
+      name: data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1

@@ -3,15 +3,20 @@
 
 <head>
     <meta charset="utf-8" />
+    <link rel="icon" href="{% load static %}{% static 'favicon.ico' %}" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="description"
+        content="Visual Database Query Builder - Build complex database queries with drag-and-drop simplicity" />
     <title>Visual Database Query Builder</title>
     {% load static %}
-    <link href="{% static 'static/css/main.css' %}" rel="stylesheet">
+    <link href="{% static 'css/main.css' %}" rel="stylesheet">
 </head>
 
 <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
-    <script src="{% static 'static/js/main.js' %}"></script>
+    <script src="{% static 'js/main.js' %}"></script>
 </body>
 
 </html>
