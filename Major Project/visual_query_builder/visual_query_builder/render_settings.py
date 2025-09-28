@@ -81,37 +81,61 @@ if DB_HOST:
 else:
     print("📦 No DB_HOST found, using SQLite")
 
-# Check if we have PostgreSQL credentials
+# ROBUST DATABASE CONFIGURATION - Multiple fallback strategies
 if DB_HOST and DB_PASSWORD:
-    # Production: Use PostgreSQL (Supabase) with SIMPLIFIED ENCODING CONFIGURATION
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": DB_NAME,
-            "USER": DB_USER,
-            "PASSWORD": DB_PASSWORD,
-            "HOST": DB_HOST,
-            "PORT": int(DB_PORT),
-            "OPTIONS": {
-                # SIMPLIFIED OPTIONS - Remove problematic encoding parameters
-                "sslmode": "require",
-                "connect_timeout": 60,
-                "application_name": "VisualQueryBuilder",
-                # REMOVED: client_encoding and options parameters that cause issues
-                # Let PostgreSQL use its default encoding settings
-                # Keep only essential connection stability settings
-                "keepalives_idle": 600,
-                "keepalives_interval": 30,
-                "keepalives_count": 3,
-            },
-            # Connection pooling optimization
-            "CONN_MAX_AGE": 300,  # 5 minutes
-            "CONN_HEALTH_CHECKS": True,
+    # Try connection pooling first, with robust fallback options
+    print("🔗 Attempting connection pooling configuration...")
+
+    # Check if we're using connection pooling (port 6543)
+    is_connection_pooling = int(DB_PORT) == 6543
+
+    if is_connection_pooling:
+        print("🌊 Using connection pooling configuration")
+        # Strategy 1: Minimal configuration for connection pooling
+        DATABASES = {
+            "default": {
+                "ENGINE": "django.db.backends.postgresql",
+                "NAME": DB_NAME,
+                "USER": DB_USER,
+                "PASSWORD": DB_PASSWORD,
+                "HOST": DB_HOST,
+                "PORT": int(DB_PORT),
+                "OPTIONS": {
+                    # MINIMAL OPTIONS to avoid encoding conflicts
+                    "sslmode": "require",
+                    "connect_timeout": 30,
+                    # Remove all encoding-related options
+                },
+                # Reduced connection pooling to avoid conflicts
+                "CONN_MAX_AGE": 0,  # Disable Django connection pooling
+                "CONN_HEALTH_CHECKS": False,
+            }
         }
-    }
-    print(f"✅ Configured PostgreSQL with simplified encoding: {DB_HOST}")
+        print("✅ Configured minimal connection pooling setup")
+    else:
+        print("🔗 Using direct connection configuration")
+        # Strategy 2: Direct connection with standard settings
+        DATABASES = {
+            "default": {
+                "ENGINE": "django.db.backends.postgresql",
+                "NAME": DB_NAME,
+                "USER": DB_USER,
+                "PASSWORD": DB_PASSWORD,
+                "HOST": DB_HOST,
+                "PORT": int(DB_PORT),
+                "OPTIONS": {
+                    "sslmode": "require",
+                    "connect_timeout": 30,
+                },
+                "CONN_MAX_AGE": 300,
+                "CONN_HEALTH_CHECKS": True,
+            }
+        }
+        print("✅ Configured direct connection setup")
+
 else:
-    # Development: Optimized SQLite with better performance
+    # Fallback: Enhanced SQLite with sample data
+    print("📦 Using enhanced SQLite with sample data")
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
@@ -131,7 +155,6 @@ else:
             },
         }
     }
-    print("📦 Using optimized SQLite")
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -151,7 +174,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Internationalization
 LANGUAGE_CODE = "en-us"
-TIME_ZONE = "UTC"  # This is the correct way to set timezone in Django
+TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
@@ -186,28 +209,22 @@ REST_FRAMEWORK = {
 
 # CORS configuration
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "")
-
-# Allow all origins in DEBUG mode, specific origins in production
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 
-# Production CORS settings
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "https://meta-scifor-tech.onrender.com",
 ]
 
-# Add frontend URL from environment variable if provided
 if FRONTEND_URL:
     frontend_url = FRONTEND_URL.rstrip("/")
     CORS_ALLOWED_ORIGINS.append(frontend_url)
 
-# Remove empty strings and duplicates, ensure no trailing slashes
 CORS_ALLOWED_ORIGINS = list(
     set([origin.rstrip("/") for origin in CORS_ALLOWED_ORIGINS if origin])
 )
 
-# Essential CORS settings for cross-domain requests
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = [
     "accept",

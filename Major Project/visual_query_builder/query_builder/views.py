@@ -11,6 +11,7 @@ import json
 import hashlib
 import time
 from typing import Dict, List, Any
+import os
 
 # Correct imports
 from .models import DatabaseConnection, QueryHistory, PerformanceMetrics
@@ -375,3 +376,265 @@ class RealTimeAnalysisView(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=400)
+
+
+class CreateSampleDataView(APIView):
+
+    def get(self, request):
+        try:
+            # Create sample SQLite connection
+            sqlite_conn, created = DatabaseConnection.objects.get_or_create(
+                name="Sample SQLite Database",
+                defaults={
+                    "host": "localhost",
+                    "port": 0,
+                    "database": "sample_data.db",
+                    "username": "sqlite",
+                    "password": "",
+                    "engine": "sqlite",
+                },
+            )
+
+            results = {
+                "success": True,
+                "message": "Sample data created successfully!",
+                "connections_created": [],
+                "admin_user": None,
+                "next_steps": [
+                    "Go to your app homepage",
+                    'Select "Sample SQLite Database" from dropdown',
+                    "Start building queries with drag & drop!",
+                    "Try dragging tables and columns to build SQL queries",
+                ],
+            }
+
+            if created:
+                results["connections_created"].append(
+                    {
+                        "name": sqlite_conn.name,
+                        "engine": sqlite_conn.engine,
+                        "status": "Created",
+                    }
+                )
+            else:
+                results["connections_created"].append(
+                    {
+                        "name": sqlite_conn.name,
+                        "engine": sqlite_conn.engine,
+                        "status": "Already exists",
+                    }
+                )
+
+            # Try to create PostgreSQL connection if environment variables exist
+            db_host = os.environ.get("DB_HOST")
+            db_user = os.environ.get("DB_USER")
+            db_password = os.environ.get("DB_PASSWORD")
+
+            if db_host and db_user and db_password:
+                pg_conn, pg_created = DatabaseConnection.objects.get_or_create(
+                    name="Supabase PostgreSQL (Backup)",
+                    defaults={
+                        "host": db_host,
+                        "port": int(os.environ.get("DB_PORT", 6543)),
+                        "database": os.environ.get("DB_NAME", "postgres"),
+                        "username": db_user,
+                        "password": db_password,
+                        "engine": "postgresql",
+                    },
+                )
+
+                results["connections_created"].append(
+                    {
+                        "name": pg_conn.name,
+                        "engine": pg_conn.engine,
+                        "status": "Created" if pg_created else "Already exists",
+                    }
+                )
+
+            # Create admin user if not exists
+            if not User.objects.filter(username="admin").exists():
+                admin_user = User.objects.create_superuser(
+                    username="admin", email="admin@example.com", password="admin123"
+                )
+                results["admin_user"] = {
+                    "username": "admin",
+                    "password": "admin123",
+                    "status": "Created",
+                }
+            else:
+                results["admin_user"] = {
+                    "username": "admin",
+                    "status": "Already exists",
+                }
+
+            # Create sample schema information for SQLite
+            self.create_sample_sqlite_tables()
+
+            return Response(results, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response(
+                {
+                    "success": False,
+                    "error": str(e),
+                    "message": "Failed to create sample data",
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    def create_sample_sqlite_tables(self):
+        """Create sample tables in SQLite for demonstration"""
+        from django.db import connection
+
+        try:
+            cursor = connection.cursor()
+
+            # Create sample users table
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS sample_users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name VARCHAR(100) NOT NULL,
+                    email VARCHAR(100) UNIQUE NOT NULL,
+                    age INTEGER,
+                    department VARCHAR(50),
+                    salary DECIMAL(10,2),
+                    hire_date DATE,
+                    is_active BOOLEAN DEFAULT 1
+                )
+            """
+            )
+
+            # Create sample products table
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS sample_products (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name VARCHAR(100) NOT NULL,
+                    category VARCHAR(50),
+                    price DECIMAL(10,2),
+                    stock_quantity INTEGER DEFAULT 0,
+                    description TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """
+            )
+
+            # Create sample orders table
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS sample_orders (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER,
+                    product_id INTEGER,
+                    quantity INTEGER DEFAULT 1,
+                    total_price DECIMAL(10,2),
+                    order_date DATE DEFAULT CURRENT_DATE,
+                    status VARCHAR(20) DEFAULT 'pending'
+                )
+            """
+            )
+
+            # Insert sample data if tables are empty
+            cursor.execute("SELECT COUNT(*) FROM sample_users")
+            if cursor.fetchone()[0] == 0:
+                sample_users = [
+                    (
+                        "John Doe",
+                        "john@example.com",
+                        30,
+                        "Engineering",
+                        75000.00,
+                        "2023-01-15",
+                    ),
+                    (
+                        "Jane Smith",
+                        "jane@example.com",
+                        28,
+                        "Marketing",
+                        65000.00,
+                        "2023-02-01",
+                    ),
+                    (
+                        "Bob Johnson",
+                        "bob@example.com",
+                        35,
+                        "Sales",
+                        70000.00,
+                        "2023-01-20",
+                    ),
+                    (
+                        "Alice Brown",
+                        "alice@example.com",
+                        32,
+                        "Engineering",
+                        80000.00,
+                        "2023-03-01",
+                    ),
+                    (
+                        "Charlie Wilson",
+                        "charlie@example.com",
+                        29,
+                        "HR",
+                        60000.00,
+                        "2023-02-15",
+                    ),
+                ]
+
+                cursor.executemany(
+                    """
+                    INSERT INTO sample_users (name, email, age, department, salary, hire_date)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                    sample_users,
+                )
+
+                sample_products = [
+                    (
+                        "Laptop Pro",
+                        "Electronics",
+                        1299.99,
+                        50,
+                        "High-performance laptop",
+                    ),
+                    (
+                        "Wireless Headphones",
+                        "Electronics",
+                        199.99,
+                        100,
+                        "Noise-cancelling headphones",
+                    ),
+                    ("Office Chair", "Furniture", 299.99, 25, "Ergonomic office chair"),
+                    ("Coffee Mug", "Kitchen", 12.99, 200, "Ceramic coffee mug"),
+                    ("Desk Lamp", "Furniture", 79.99, 30, "LED desk lamp"),
+                ]
+
+                cursor.executemany(
+                    """
+                    INSERT INTO sample_products (name, category, price, stock_quantity, description)
+                    VALUES (?, ?, ?, ?, ?)
+                """,
+                    sample_products,
+                )
+
+                sample_orders = [
+                    (1, 1, 1, 1299.99, "2024-01-15", "completed"),
+                    (2, 2, 1, 199.99, "2024-01-16", "completed"),
+                    (3, 3, 2, 599.98, "2024-01-17", "pending"),
+                    (1, 4, 3, 38.97, "2024-01-18", "completed"),
+                    (2, 5, 1, 79.99, "2024-01-19", "shipped"),
+                ]
+
+                cursor.executemany(
+                    """
+                    INSERT INTO sample_orders (user_id, product_id, quantity, total_price, order_date, status)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                    sample_orders,
+                )
+
+            cursor.close()
+
+        except Exception as e:
+            print(f"Error creating sample SQLite tables: {e}")
+            pass

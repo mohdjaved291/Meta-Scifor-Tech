@@ -13,6 +13,7 @@ from .views import (
     QueryExecutionView,
     QueryHistoryView,
     PerformanceAnalyticsView,
+    CreateSampleDataView,
 )
 
 urlpatterns = [
@@ -27,5 +28,8 @@ urlpatterns = [
     path("query/history/", QueryHistoryView.as_view(), name="query-history"),
     path(
         "analytics/", PerformanceAnalyticsView.as_view(), name="performance-analytics"
+    ),
+    path(
+        "create-sample-data/", CreateSampleDataView.as_view(), name="create-sample-data"
     ),
 ]
