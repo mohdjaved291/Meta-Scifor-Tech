@@ -64,17 +64,53 @@ TEMPLATES = [
 WSGI_APPLICATION = "visual_query_builder.wsgi.application"
 
 # Database configuration
-DATABASE_URL = os.environ.get("DATABASE_URL")
-if DATABASE_URL:
-    DATABASES = {"default": dj_database_url.parse(DATABASE_URL)}
-else:
-    # Fallback to SQLite for development
+# Use individual environment variables instead of parsing DATABASE_URL
+
+# Get individual database components from environment
+DB_HOST = os.environ.get("DB_HOST")
+DB_NAME = os.environ.get("DB_NAME", "postgres")
+DB_USER = os.environ.get("DB_USER", "postgres")
+DB_PASSWORD = os.environ.get("DB_PASSWORD")
+DB_PORT = os.environ.get("DB_PORT", "5432")
+
+# Check if we have PostgreSQL credentials
+if DB_HOST and DB_PASSWORD:
+    # Production: Use PostgreSQL (Supabase)
     DATABASES = {
         "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "data" / "db.sqlite3",
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": DB_NAME,
+            "USER": DB_USER,
+            "PASSWORD": DB_PASSWORD,
+            "HOST": DB_HOST,
+            "PORT": int(DB_PORT),
+            "OPTIONS": {
+                "sslmode": "require",
+            },
         }
     }
+else:
+    # Fallback: Check for DATABASE_URL (but use safer parsing)
+    DATABASE_URL = os.environ.get("DATABASE_URL")
+    if DATABASE_URL and not DATABASE_URL.count("$"):  # Only parse if no special chars
+        try:
+            DATABASES = {"default": dj_database_url.parse(DATABASE_URL)}
+        except:
+            # If parsing fails, use SQLite fallback
+            DATABASES = {
+                "default": {
+                    "ENGINE": "django.db.backends.sqlite3",
+                    "NAME": BASE_DIR / "data" / "db.sqlite3",
+                }
+            }
+    else:
+        # Fallback to SQLite for development
+        DATABASES = {
+            "default": {
+                "ENGINE": "django.db.backends.sqlite3",
+                "NAME": BASE_DIR / "data" / "db.sqlite3",
+            }
+        }
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
