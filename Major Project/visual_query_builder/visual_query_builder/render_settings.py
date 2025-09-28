@@ -64,6 +64,9 @@ TEMPLATES = [
 WSGI_APPLICATION = "visual_query_builder.wsgi.application"
 
 # Database configuration
+DATA_DIR = BASE_DIR / "data"
+DATA_DIR.mkdir(exist_ok=True)
+
 # Use individual environment variables instead of parsing DATABASE_URL
 
 # Get individual database components from environment
@@ -73,6 +76,13 @@ DB_USER = os.environ.get("DB_USER", "postgres")
 DB_PASSWORD = os.environ.get("DB_PASSWORD")
 DB_PORT = os.environ.get("DB_PORT", "5432")
 
+# Debug logging
+if DB_HOST:
+    print(f"🔍 Attempting PostgreSQL connection to: {DB_HOST}")
+    print(f"📝 Database: {DB_NAME}, User: {DB_USER}, Port: {DB_PORT}")
+else:
+    print("📦 No DB_HOST found, using SQLite")
+    
 # Check if we have PostgreSQL credentials
 if DB_HOST and DB_PASSWORD:
     # Production: Use PostgreSQL (Supabase)
@@ -86,31 +96,39 @@ if DB_HOST and DB_PASSWORD:
             "PORT": int(DB_PORT),
             "OPTIONS": {
                 "sslmode": "require",
+                "connect_timeout": 60,
+                "application_name": "VisualQueryBuilder",
+                # Additional PostgreSQL optimizations
+                "isolation_level": "read committed",
+            },
+            # Connection pooling optimization
+            "CONN_MAX_AGE": 300,  # 5 minutes
+            "CONN_HEALTH_CHECKS": True,
+        }
+    }
+    print(f"✅ Configured PostgreSQL: {DB_HOST}")
+else:
+    # Development: Optimized SQLite with better performance
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": DATA_DIR / "db.sqlite3",
+            "OPTIONS": {
+                "timeout": 30,
+                "check_same_thread": False,
+                # SQLite performance optimizations
+                "init_command": """
+                    PRAGMA foreign_keys=ON;
+                    PRAGMA journal_mode=WAL;
+                    PRAGMA synchronous=NORMAL;
+                    PRAGMA cache_size=2000;
+                    PRAGMA temp_store=MEMORY;
+                    PRAGMA mmap_size=268435456;
+                """,
             },
         }
     }
-else:
-    # Fallback: Check for DATABASE_URL (but use safer parsing)
-    DATABASE_URL = os.environ.get("DATABASE_URL")
-    if DATABASE_URL and not DATABASE_URL.count("$"):  # Only parse if no special chars
-        try:
-            DATABASES = {"default": dj_database_url.parse(DATABASE_URL)}
-        except:
-            # If parsing fails, use SQLite fallback
-            DATABASES = {
-                "default": {
-                    "ENGINE": "django.db.backends.sqlite3",
-                    "NAME": BASE_DIR / "data" / "db.sqlite3",
-                }
-            }
-    else:
-        # Fallback to SQLite for development
-        DATABASES = {
-            "default": {
-                "ENGINE": "django.db.backends.sqlite3",
-                "NAME": BASE_DIR / "data" / "db.sqlite3",
-            }
-        }
+    print("📦 Using optimized SQLite")
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
