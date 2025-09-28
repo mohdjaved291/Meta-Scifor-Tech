@@ -101,9 +101,10 @@ if DB_HOST and DB_PASSWORD:
                 "application_name": "VisualQueryBuilder",
                 # ENCODING FIXES for connection pooling
                 "client_encoding": "UTF8",
-                "timezone": "UTC",
-                # Additional connection parameters for encoding
-                "options": "-c default_transaction_isolation=read_committed -c timezone=UTC -c client_encoding=UTF8",
+                # REMOVED: "timezone": "UTC" - This causes the error!
+                # Timezone is handled by Django's TIME_ZONE setting below
+                # Simplified connection parameters (removed timezone from options)
+                "options": "-c default_transaction_isolation=read_committed -c client_encoding=UTF8",
                 # Connection stability
                 "keepalives_idle": 600,
                 "keepalives_interval": 30,
@@ -155,8 +156,10 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 # Internationalization
+# IMPORTANT: This TIME_ZONE setting is what controls Django's timezone handling
+# This is NOT a database connection parameter
 LANGUAGE_CODE = "en-us"
-TIME_ZONE = "UTC"
+TIME_ZONE = "UTC"  # This is the correct way to set timezone in Django
 USE_I18N = True
 USE_TZ = True
 
