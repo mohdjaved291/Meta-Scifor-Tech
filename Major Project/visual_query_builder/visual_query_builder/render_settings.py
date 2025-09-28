@@ -85,7 +85,7 @@ else:
 
 # Check if we have PostgreSQL credentials
 if DB_HOST and DB_PASSWORD:
-    # Production: Use PostgreSQL (Supabase)
+    # Production: Use PostgreSQL (Supabase) with ENCODING FIXES
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
@@ -95,18 +95,26 @@ if DB_HOST and DB_PASSWORD:
             "HOST": DB_HOST,
             "PORT": int(DB_PORT),
             "OPTIONS": {
+                # SSL settings
                 "sslmode": "require",
                 "connect_timeout": 60,
                 "application_name": "VisualQueryBuilder",
-                # FIXED: Remove the problematic isolation_level setting
-                # Let PostgreSQL use its default isolation level
+                # ENCODING FIXES for connection pooling
+                "client_encoding": "UTF8",
+                "timezone": "UTC",
+                # Additional connection parameters for encoding
+                "options": "-c default_transaction_isolation=read_committed -c timezone=UTC -c client_encoding=UTF8",
+                # Connection stability
+                "keepalives_idle": 600,
+                "keepalives_interval": 30,
+                "keepalives_count": 3,
             },
             # Connection pooling optimization
             "CONN_MAX_AGE": 300,  # 5 minutes
             "CONN_HEALTH_CHECKS": True,
         }
     }
-    print(f"✅ Configured PostgreSQL: {DB_HOST}")
+    print(f"✅ Configured PostgreSQL with encoding fixes: {DB_HOST}")
 else:
     # Development: Optimized SQLite with better performance
     DATABASES = {
@@ -227,6 +235,7 @@ CORS_ALLOW_METHODS = [
     "POST",
     "PUT",
 ]
+
 # Security settings for production
 if not DEBUG:
     SECURE_BROWSER_XSS_FILTER = True

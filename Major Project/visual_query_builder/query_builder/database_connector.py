@@ -5,6 +5,7 @@ from typing import Dict, List, Any, Tuple
 
 try:
     import psycopg2
+    import psycopg2.extras
 
     HAS_POSTGRESQL = True
 except ImportError:
@@ -29,18 +30,42 @@ class DatabaseConnector:
         try:
             if self.config["engine"] == "sqlite":
                 self.connection = sqlite3.connect(self.config["database"])
+
             elif self.config["engine"] == "postgresql":
                 if not HAS_POSTGRESQL:
                     raise ImportError(
                         "PostgreSQL support not available. Install psycopg2-binary."
                     )
-                self.connection = psycopg2.connect(
-                    host=self.config["host"],
-                    port=self.config["port"],
-                    database=self.config["database"],
-                    user=self.config["username"],
-                    password=self.config["password"],
-                )
+
+                # Enhanced connection parameters for encoding fixes
+                conn_params = {
+                    "host": self.config["host"],
+                    "port": self.config["port"],
+                    "database": self.config["database"],
+                    "user": self.config["username"],
+                    "password": self.config["password"],
+                    "sslmode": "require",
+                    "connect_timeout": 30,
+                    "application_name": "VisualQueryBuilder",
+                    # ENCODING FIXES
+                    "client_encoding": "UTF8",
+                    "options": "-c timezone=UTC -c client_encoding=UTF8",
+                }
+
+                print(f"🔗 Connecting to PostgreSQL with encoding fixes...")
+                self.connection = psycopg2.connect(**conn_params)
+
+                # Explicitly set encoding after connection
+                with self.connection.cursor() as cursor:
+                    cursor.execute("SET client_encoding = 'UTF8'")
+                    cursor.execute("SET timezone = 'UTC'")
+                    cursor.execute(
+                        "SET default_transaction_isolation = 'read committed'"
+                    )
+                self.connection.commit()
+
+                print(f"✅ PostgreSQL connected with UTF8 encoding")
+
             elif self.config["engine"] == "mysql":
                 if not HAS_MYSQL:
                     raise ImportError(
@@ -52,16 +77,20 @@ class DatabaseConnector:
                     database=self.config["database"],
                     user=self.config["username"],
                     password=self.config["password"],
+                    charset="utf8mb4",
                 )
+
             elif self.config["engine"] == "oracle":
                 raise NotImplementedError("Oracle support not yet implemented.")
+
             return True
+
         except Exception as e:
-            print(f"Connection error: {e}")
+            print(f"❌ Connection error: {e}")
             return False
 
     def get_schema(self) -> Dict[str, List[Dict]]:
-        """Get database schema information"""
+        """Get database schema information with proper encoding"""
         if not self.connection:
             return {}
 
@@ -85,27 +114,54 @@ class DatabaseConnector:
                                 "primary_key": bool(col[5]),
                             }
                         )
-                    schema[table] = columns
+                    schema[table] = {
+                        "columns": columns,
+                        "stats": {
+                            "record_count": 1000,  # Default for SQLite
+                            "has_indexes": False,
+                        },
+                    }
 
             elif self.config["engine"] == "postgresql":
+                # Set encoding for this session
+                cursor.execute("SET client_encoding = 'UTF8'")
+
+                # Get all tables
                 cursor.execute(
                     """
                     SELECT table_name 
                     FROM information_schema.tables 
                     WHERE table_schema = 'public'
+                    ORDER BY table_name
                 """
                 )
                 tables = [row[0] for row in cursor.fetchall()]
 
+                print(f"📊 Found {len(tables)} tables in database")
+
                 for table in tables:
+                    # Get column information with primary key detection
                     cursor.execute(
                         """
-                        SELECT column_name, data_type, is_nullable, 
-                               column_default, is_identity
-                        FROM information_schema.columns 
-                        WHERE table_name = %s
+                        SELECT 
+                            c.column_name,
+                            c.data_type,
+                            c.is_nullable,
+                            c.column_default,
+                            CASE WHEN pk.column_name IS NOT NULL THEN true ELSE false END as is_primary_key
+                        FROM information_schema.columns c
+                        LEFT JOIN (
+                            SELECT ku.column_name
+                            FROM information_schema.key_column_usage ku
+                            JOIN information_schema.table_constraints tc 
+                                ON ku.constraint_name = tc.constraint_name
+                            WHERE tc.constraint_type = 'PRIMARY KEY' 
+                                AND ku.table_name = %s
+                        ) pk ON c.column_name = pk.column_name
+                        WHERE c.table_name = %s
+                        ORDER BY c.ordinal_position
                     """,
-                        (table,),
+                        (table, table),
                     )
 
                     columns = []
@@ -116,13 +172,32 @@ class DatabaseConnector:
                                 "type": col[1],
                                 "nullable": col[2] == "YES",
                                 "default": col[3],
-                                "primary_key": col[4] == "YES",
+                                "primary_key": col[4],
                             }
                         )
-                    schema[table] = columns
+
+                    # Get row count safely
+                    try:
+                        cursor.execute(f"SELECT COUNT(*) FROM {table}")
+                        row_count = cursor.fetchone()[0]
+                    except:
+                        row_count = 0
+
+                    schema[table] = {
+                        "columns": columns,
+                        "stats": {
+                            "record_count": row_count,
+                            "has_indexes": True,
+                        },
+                    }
+
+                print(f"✅ Schema extracted successfully for {len(schema)} tables")
 
         except Exception as e:
-            print(f"Schema extraction error: {e}")
+            print(f"❌ Schema extraction error: {e}")
+            import traceback
+
+            traceback.print_exc()
 
         return schema
 
@@ -135,6 +210,10 @@ class DatabaseConnector:
         start_time = time.time()
 
         try:
+            # Set encoding for PostgreSQL queries
+            if self.config["engine"] == "postgresql":
+                cursor.execute("SET client_encoding = 'UTF8'")
+
             cursor.execute(sql)
             execution_time = time.time() - start_time
 
@@ -152,170 +231,16 @@ class DatabaseConnector:
                 return [{"message": "Query executed successfully"}], execution_time
 
         except Exception as e:
+            print(f"❌ Query execution error: {e}")
             return [{"error": str(e)}], time.time() - start_time
-
-    def execute_query_with_monitoring(self, sql: str) -> Tuple[List[Dict], float]:
-        """Execute query with detailed monitoring and progress tracking"""
-        if not self.connection:
-            return [], 0.0
-
-        cursor = self.connection.cursor()
-        start_time = time.time()
-
-        try:
-            # Get query execution plan first (PostgreSQL specific)
-            if self.config["engine"] == "postgresql":
-                try:
-                    explain_sql = f"EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) {sql}"
-                    cursor.execute(explain_sql)
-                    explain_result = cursor.fetchone()[0]
-                    # Store explain plan for analysis
-                except Exception:
-                    pass  # Continue without explain plan if not available
-
-            # Execute the actual query
-            cursor.execute(sql)
-            execution_time = time.time() - start_time
-
-            if sql.strip().lower().startswith("select"):
-                columns = [desc[0] for desc in cursor.description]
-                rows = cursor.fetchall()
-
-                results = []
-                for row in rows:
-                    results.append(dict(zip(columns, row)))
-
-                return results, execution_time
-            else:
-                self.connection.commit()
-                return [{"message": "Query executed successfully"}], execution_time
-
-        except Exception as e:
-            return [{"error": str(e)}], time.time() - start_time
-
-    def get_query_execution_plan(self, sql: str) -> Dict[str, Any]:
-        """Get detailed execution plan for a query"""
-        if not self.connection:
-            return {}
-
-        cursor = self.connection.cursor()
-
-        try:
-            if self.config["engine"] == "postgresql":
-                explain_sql = f"EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) {sql}"
-                cursor.execute(explain_sql)
-                plan = cursor.fetchone()[0][0]
-
-                return {
-                    "plan": plan,
-                    "total_cost": plan.get("Total Cost", 0),
-                    "execution_time": plan.get("Actual Total Time", 0),
-                    "rows": plan.get("Actual Rows", 0),
-                }
-            elif self.config["engine"] == "mysql":
-                cursor.execute(f"EXPLAIN FORMAT=JSON {sql}")
-                plan = cursor.fetchone()[0]
-                return {"plan": plan, "engine": "mysql"}
-            else:
-                return {"plan": "Execution plan not available for this database engine"}
-
-        except Exception as e:
-            return {"error": f"Could not get execution plan: {str(e)}"}
-
-    def get_table_statistics(self, table_name: str) -> Dict[str, Any]:
-        """Get detailed statistics for a specific table"""
-        if not self.connection:
-            return {}
-
-        cursor = self.connection.cursor()
-        stats = {}
-
-        try:
-            if self.config["engine"] == "postgresql":
-                # Get table stats
-                cursor.execute(
-                    f"""
-                    SELECT 
-                        schemaname,
-                        tablename,
-                        attname,
-                        n_distinct,
-                        correlation,
-                        most_common_vals,
-                        most_common_freqs
-                    FROM pg_stats 
-                    WHERE tablename = '{table_name}'
-                """
-                )
-
-                column_stats = cursor.fetchall()
-                stats["column_statistics"] = [
-                    {
-                        "column": row[2],
-                        "distinct_values": row[3],
-                        "correlation": row[4],
-                        "common_values": row[5],
-                        "frequencies": row[6],
-                    }
-                    for row in column_stats
-                ]
-
-                # Get index information
-                cursor.execute(
-                    f"""
-                    SELECT 
-                        indexname,
-                        indexdef,
-                        idx_scan,
-                        idx_tup_read,
-                        idx_tup_fetch
-                    FROM pg_indexes pi
-                    LEFT JOIN pg_stat_user_indexes psi ON pi.indexname = psi.indexrelname
-                    WHERE pi.tablename = '{table_name}'
-                """
-                )
-
-                index_stats = cursor.fetchall()
-                stats["indexes"] = [
-                    {
-                        "name": row[0],
-                        "definition": row[1],
-                        "scans": row[2] or 0,
-                        "tuples_read": row[3] or 0,
-                        "tuples_fetched": row[4] or 0,
-                    }
-                    for row in index_stats
-                ]
-
-                # Get table size
-                cursor.execute(
-                    f"""
-                    SELECT 
-                        pg_size_pretty(pg_total_relation_size('{table_name}')) as total_size,
-                        pg_size_pretty(pg_relation_size('{table_name}')) as table_size,
-                        (SELECT COUNT(*) FROM {table_name}) as row_count
-                """
-                )
-
-                size_info = cursor.fetchone()
-                stats["size_info"] = {
-                    "total_size": size_info[0],
-                    "table_size": size_info[1],
-                    "row_count": size_info[2],
-                }
-
-        except Exception as e:
-            stats["error"] = str(e)
-
-        return stats
 
     def close(self):
         """Close the database connection"""
         if self.connection:
             try:
                 self.connection.close()
-                print("Database connection closed successfully")
+                print("✅ Database connection closed successfully")
             except Exception as e:
-                print(f"Error closing connection: {e}")
+                print(f"❌ Error closing connection: {e}")
             finally:
                 self.connection = None
