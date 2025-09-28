@@ -82,7 +82,7 @@ if DB_HOST:
     print(f"📝 Database: {DB_NAME}, User: {DB_USER}, Port: {DB_PORT}")
 else:
     print("📦 No DB_HOST found, using SQLite")
-    
+
 # Check if we have PostgreSQL credentials
 if DB_HOST and DB_PASSWORD:
     # Production: Use PostgreSQL (Supabase)
@@ -98,8 +98,8 @@ if DB_HOST and DB_PASSWORD:
                 "sslmode": "require",
                 "connect_timeout": 60,
                 "application_name": "VisualQueryBuilder",
-                # Additional PostgreSQL optimizations
-                "isolation_level": "read committed",
+                # FIXED: Remove the problematic isolation_level setting
+                # Let PostgreSQL use its default isolation level
             },
             # Connection pooling optimization
             "CONN_MAX_AGE": 300,  # 5 minutes
