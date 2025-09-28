@@ -67,8 +67,6 @@ WSGI_APPLICATION = "visual_query_builder.wsgi.application"
 DATA_DIR = BASE_DIR / "data"
 DATA_DIR.mkdir(exist_ok=True)
 
-# Use individual environment variables instead of parsing DATABASE_URL
-
 # Get individual database components from environment
 DB_HOST = os.environ.get("DB_HOST")
 DB_NAME = os.environ.get("DB_NAME", "postgres")
@@ -85,7 +83,7 @@ else:
 
 # Check if we have PostgreSQL credentials
 if DB_HOST and DB_PASSWORD:
-    # Production: Use PostgreSQL (Supabase) with ENCODING FIXES
+    # Production: Use PostgreSQL (Supabase) with SIMPLIFIED ENCODING CONFIGURATION
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
@@ -95,17 +93,13 @@ if DB_HOST and DB_PASSWORD:
             "HOST": DB_HOST,
             "PORT": int(DB_PORT),
             "OPTIONS": {
-                # SSL settings
+                # SIMPLIFIED OPTIONS - Remove problematic encoding parameters
                 "sslmode": "require",
                 "connect_timeout": 60,
                 "application_name": "VisualQueryBuilder",
-                # ENCODING FIXES for connection pooling
-                "client_encoding": "UTF8",
-                # REMOVED: "timezone": "UTC" - This causes the error!
-                # Timezone is handled by Django's TIME_ZONE setting below
-                # Simplified connection parameters (removed timezone from options)
-                "options": "-c default_transaction_isolation=read_committed -c client_encoding=UTF8",
-                # Connection stability
+                # REMOVED: client_encoding and options parameters that cause issues
+                # Let PostgreSQL use its default encoding settings
+                # Keep only essential connection stability settings
                 "keepalives_idle": 600,
                 "keepalives_interval": 30,
                 "keepalives_count": 3,
@@ -115,7 +109,7 @@ if DB_HOST and DB_PASSWORD:
             "CONN_HEALTH_CHECKS": True,
         }
     }
-    print(f"✅ Configured PostgreSQL with encoding fixes: {DB_HOST}")
+    print(f"✅ Configured PostgreSQL with simplified encoding: {DB_HOST}")
 else:
     # Development: Optimized SQLite with better performance
     DATABASES = {
@@ -156,8 +150,6 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 # Internationalization
-# IMPORTANT: This TIME_ZONE setting is what controls Django's timezone handling
-# This is NOT a database connection parameter
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"  # This is the correct way to set timezone in Django
 USE_I18N = True
@@ -192,22 +184,21 @@ REST_FRAMEWORK = {
     ],
 }
 
-# CORS configuration - FIXED (Remove trailing slashes)
+# CORS configuration
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "")
 
 # Allow all origins in DEBUG mode, specific origins in production
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 
-# Production CORS settings - NO TRAILING SLASHES
+# Production CORS settings
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "https://meta-scifor-tech.onrender.com",  # NO trailing slash
+    "https://meta-scifor-tech.onrender.com",
 ]
 
 # Add frontend URL from environment variable if provided
 if FRONTEND_URL:
-    # Remove trailing slash if present
     frontend_url = FRONTEND_URL.rstrip("/")
     CORS_ALLOWED_ORIGINS.append(frontend_url)
 
