@@ -17,27 +17,28 @@ Including another URLconf
 """
 URL configuration for visual_query_builder project.
 """
-"""
-URL configuration for visual_query_builder project
-Add this temporarily to debug which settings Django is using
-"""
+
 from django.contrib import admin
 from django.urls import path, include
-from django.views.generic import TemplateView
 from django.http import JsonResponse
-from django.conf import settings
 
 
-def debug_settings(request):
-    """Debug endpoint to check which settings Django is using"""
+def api_info(request):
+    """Simple API info page instead of template"""
     return JsonResponse(
         {
-            "status": "Django is running",
-            "settings_module": getattr(settings, "SETTINGS_MODULE", "Unknown"),
-            "debug_mode": settings.DEBUG,
-            "allowed_hosts": settings.ALLOWED_HOSTS,
-            "database_engine": settings.DATABASES["default"]["ENGINE"],
-            "static_url": settings.STATIC_URL,
+            "app": "Visual Database Query Builder",
+            "status": "running",
+            "version": "1.0",
+            "endpoints": {
+                "admin": "/admin/",
+                "api_connections": "/api/connections/",
+                "api_schema": "/api/connections/{id}/schema/",
+                "create_sample_data": "/api/create-sample-data/",
+                "query_build": "/api/query/build/",
+                "query_execute": "/api/query/execute/",
+            },
+            "usage": "This is the backend API for the Visual Database Query Builder",
         }
     )
 
@@ -45,8 +46,5 @@ def debug_settings(request):
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/", include("query_builder.urls")),
-    path(
-        "debug-settings/", debug_settings, name="debug-settings"
-    ),  # Add this temporarily
-    path("", TemplateView.as_view(template_name="index.html"), name="home"),
+    path("", api_info, name="home"),  # Changed from TemplateView to simple JSON
 ]
