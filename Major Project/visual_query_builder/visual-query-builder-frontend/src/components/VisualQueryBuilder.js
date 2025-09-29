@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Database, Table, Settings, Play, Eye, ChevronDown, ChevronUp } from 'lucide-react';
+import { Database, Table, Settings, Play, Eye, ChevronDown, ChevronUp, X, Download, Copy } from 'lucide-react';
 import { queryBuilderAPI } from '../api';
 import { Button } from './ui/button';
 import { Card, CardHeader, CardContent, CardTitle } from './ui/card';
@@ -30,6 +30,10 @@ const VisualQueryBuilder = () => {
         estimatedRows: '--',
         confidence: '--'
     });
+
+    // New state for query results
+    const [queryResults, setQueryResults] = useState(null);
+    const [showResults, setShowResults] = useState(false);
 
     // Load connections on component mount
     useEffect(() => {
@@ -262,8 +266,13 @@ const VisualQueryBuilder = () => {
             });
 
             console.log('Query results:', response.data);
+
+            // Store results and show results panel
+            setQueryResults(response.data);
+            setShowResults(true);
             setError('');
-            // TODO: Handle results display
+
+            // Success message
             alert(`Query executed successfully! ${response.data.rows_returned} rows returned in ${response.data.execution_time.toFixed(3)}s`);
         } catch (error) {
             console.error('Failed to execute query:', error);
@@ -278,6 +287,191 @@ const VisualQueryBuilder = () => {
             ...prev,
             columns: ['*']
         }));
+    };
+
+    // Helper functions for results export
+    const downloadResults = (format) => {
+        if (!queryResults || !queryResults.results) return;
+
+        let content = '';
+        let filename = '';
+        let mimeType = '';
+
+        if (format === 'json') {
+            content = JSON.stringify(queryResults.results, null, 2);
+            filename = 'query_results.json';
+            mimeType = 'application/json';
+        } else if (format === 'csv') {
+            if (queryResults.results.length > 0) {
+                const headers = Object.keys(queryResults.results[0]);
+                const csvContent = [
+                    headers.join(','),
+                    ...queryResults.results.map(row =>
+                        headers.map(header => {
+                            const value = row[header];
+                            // Escape quotes and wrap in quotes if contains comma
+                            if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+                                return `"${value.replace(/"/g, '""')}"`;
+                            }
+                            return value;
+                        }).join(',')
+                    )
+                ].join('\n');
+                content = csvContent;
+            }
+            filename = 'query_results.csv';
+            mimeType = 'text/csv';
+        }
+
+        const blob = new Blob([content], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+    const copyToClipboard = () => {
+        if (!queryResults || !queryResults.results) return;
+
+        const text = JSON.stringify(queryResults.results, null, 2);
+        navigator.clipboard.writeText(text).then(() => {
+            alert('Results copied to clipboard!');
+        }).catch(err => {
+            console.error('Failed to copy to clipboard:', err);
+        });
+    };
+
+    // Results Panel Component
+    const ResultsPanel = () => {
+        if (!showResults || !queryResults) return null;
+
+        return (
+            <div className="mt-6 border-2 border-gray-300 rounded-lg shadow-sm bg-white">
+                <div className="bg-gray-50 border-b border-gray-300 px-6 py-4 flex justify-between items-center">
+                    <h3 className="text-lg font-semibold text-black">Query Results</h3>
+                    <button
+                        onClick={() => setShowResults(false)}
+                        className="text-gray-500 hover:text-gray-700"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+
+                <div className="p-6">
+                    {/* Execution Summary */}
+                    <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded">
+                        <div className="text-sm text-green-800">
+                            <strong>Execution Time:</strong> {queryResults.execution_time?.toFixed(3)}s |
+                            <strong> Rows Returned:</strong> {queryResults.rows_returned} |
+                            <strong> Data Source:</strong> {queryResults.data_source || 'database'}
+                        </div>
+                    </div>
+
+                    {/* Performance Insights */}
+                    {queryResults.performance_insights && (
+                        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded">
+                            <h4 className="font-medium text-blue-800 mb-2">Performance Insights:</h4>
+                            <ul className="text-sm text-blue-700">
+                                {queryResults.performance_insights.map((insight, index) => (
+                                    <li key={index}>• {insight}</li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
+                    {/* Results Table */}
+                    {queryResults.results && queryResults.results.length > 0 ? (
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full border border-gray-300">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        {Object.keys(queryResults.results[0]).map(column => (
+                                            <th key={column} className="px-4 py-2 border border-gray-300 text-left text-sm font-medium text-gray-700">
+                                                {column}
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {queryResults.results.slice(0, 100).map((row, index) => (
+                                        <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                            {Object.keys(queryResults.results[0]).map(column => (
+                                                <td key={column} className="px-4 py-2 border border-gray-300 text-sm">
+                                                    {row[column] !== null && row[column] !== undefined ? String(row[column]) : 'NULL'}
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+
+                            {queryResults.results.length > 100 && (
+                                <div className="mt-2 text-sm text-gray-600 text-center">
+                                    Showing first 100 rows of {queryResults.rows_returned} total results
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="text-center py-8 text-gray-500">
+                            No data returned from query
+                        </div>
+                    )}
+
+                    {/* Query Analysis */}
+                    {queryResults.analysis && (
+                        <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                            <h4 className="font-medium text-yellow-800 mb-2">Query Analysis:</h4>
+                            <div className="text-sm text-yellow-700 grid grid-cols-2 gap-4">
+                                <div>Complexity Score: {queryResults.analysis.complexity_score}</div>
+                                <div>Operations: {queryResults.analysis.operations?.join(', ')}</div>
+                                <div>Tables: {queryResults.analysis.tables?.join(', ')}</div>
+                                <div>Joins: {queryResults.analysis.joins}</div>
+                            </div>
+
+                            {queryResults.analysis.optimization_suggestions?.length > 0 && (
+                                <div className="mt-2">
+                                    <strong>Optimization Suggestions:</strong>
+                                    <ul className="mt-1">
+                                        {queryResults.analysis.optimization_suggestions.map((suggestion, index) => (
+                                            <li key={index} className="text-sm">• {suggestion}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Export Options */}
+                    <div className="mt-4 flex gap-2">
+                        <button
+                            onClick={() => downloadResults('json')}
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
+                        >
+                            <Download className="w-4 h-4" />
+                            Export JSON
+                        </button>
+                        <button
+                            onClick={() => downloadResults('csv')}
+                            className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 text-sm"
+                        >
+                            <Download className="w-4 h-4" />
+                            Export CSV
+                        </button>
+                        <button
+                            onClick={copyToClipboard}
+                            className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm"
+                        >
+                            <Copy className="w-4 h-4" />
+                            Copy to Clipboard
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
     };
 
     return (
@@ -328,11 +522,13 @@ const VisualQueryBuilder = () => {
                                     <h4 className="font-semibold mb-3 text-black">Database Overview</h4>
                                     <div className="grid grid-cols-3 gap-2 mb-3">
                                         <div className="text-center bg-white border border-gray-200 rounded p-2">
-                                            <div className="text-xl font-bold text-black">14</div>
+                                            <div className="text-xl font-bold text-black">{Object.keys(schema).length}</div>
                                             <div className="text-xs text-gray-600">Tables</div>
                                         </div>
                                         <div className="text-center bg-white border border-gray-200 rounded p-2">
-                                            <div className="text-xl font-bold text-black">14,000</div>
+                                            <div className="text-xl font-bold text-black">
+                                                {Object.values(schema).reduce((total, table) => total + (table.stats?.record_count || 0), 0).toLocaleString()}
+                                            </div>
                                             <div className="text-xs text-gray-600">Total Records</div>
                                         </div>
                                         <div className="text-center bg-white border border-gray-200 rounded p-2">
@@ -533,8 +729,8 @@ const VisualQueryBuilder = () => {
                                                         >
                                                             <option value="=">=</option>
                                                             <option value="!=">!=</option>
-                                                            <option value=">">&gt;</option>
-                                                            <option value="<">&lt;</option>
+                                                            <option value=">">{'>'}</option>
+                                                            <option value="<">{'<'}</option>
                                                             <option value="LIKE">LIKE</option>
                                                         </select>
                                                         <input
@@ -670,6 +866,9 @@ const VisualQueryBuilder = () => {
                         </CardContent>
                     </Card>
                 </div>
+
+                {/* Results Panel - Added here */}
+                <ResultsPanel />
             </div>
         </div>
     );
