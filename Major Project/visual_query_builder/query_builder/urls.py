@@ -14,9 +14,11 @@ from .views import (
     QueryHistoryView,
     PerformanceAnalyticsView,
     CreateSampleDataView,
+    TestAPIView,
 )
 
 urlpatterns = [
+    path("test/", TestAPIView.as_view(), name="test-api"),
     path("connections/", DatabaseConnectionView.as_view(), name="database-connections"),
     path(
         "connections/<int:connection_id>/schema/",

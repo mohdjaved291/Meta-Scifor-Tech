@@ -22,6 +22,20 @@ from .performance_predictor import PerformancePredictor
 from .database_connector import DatabaseConnector
 
 
+class TestAPIView(APIView):
+    def get(self, request):
+        return Response(
+            {
+                "status": "success",
+                "message": "API endpoint is working!",
+                "available_endpoints": [
+                    "/api/connections/",
+                    "/api/create-sample-data/",
+                ],
+            }
+        )
+
+
 class DatabaseConnectionView(APIView):
     def get(self, request):
         connections = DatabaseConnection.objects.all()
