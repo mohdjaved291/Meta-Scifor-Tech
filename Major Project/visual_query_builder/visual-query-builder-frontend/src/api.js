@@ -10,10 +10,12 @@ const api = axios.create({
 });
 
 export const queryBuilderAPI = {
+    testConnection: () => api.get('/'),
     getConnections: () => api.get('/connections/'),
     getSchema: (connectionId) => api.get(`/connections/${connectionId}/schema/`),
     buildQuery: (data) => api.post('/query/build/', data),
     executeQuery: (data) => api.post('/query/execute/', data),
+    createSampleData: () => api.get('/create-sample-data/'),
 };
 
 export default api;
