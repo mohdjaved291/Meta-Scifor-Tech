@@ -17,41 +17,36 @@ Including another URLconf
 """
 URL configuration for visual_query_builder project.
 """
-# visual_query_builder/urls.py - Main URLs file
+"""
+URL configuration for visual_query_builder project
+Add this temporarily to debug which settings Django is using
+"""
 from django.contrib import admin
 from django.urls import path, include
 from django.views.generic import TemplateView
 from django.http import JsonResponse
+from django.conf import settings
 
 
-def api_health_check(request):
-    """Simple health check for API"""
+def debug_settings(request):
+    """Debug endpoint to check which settings Django is using"""
     return JsonResponse(
         {
-            "status": "OK",
-            "message": "Visual Query Builder API is running",
-            "available_endpoints": [
-                "/api/connections/",
-                "/api/query/build/",
-                "/api/query/execute/",
-                "/api/create-sample-data/",
-            ],
+            "status": "Django is running",
+            "settings_module": getattr(settings, "SETTINGS_MODULE", "Unknown"),
+            "debug_mode": settings.DEBUG,
+            "allowed_hosts": settings.ALLOWED_HOSTS,
+            "database_engine": settings.DATABASES["default"]["ENGINE"],
+            "static_url": settings.STATIC_URL,
         }
     )
 
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    # API endpoints - this MUST come first
     path("api/", include("query_builder.urls")),
-    # Health check
-    path("api-health/", api_health_check, name="api-health"),
-    # Serve React app (fallback)
-    path("", TemplateView.as_view(template_name="index.html"), name="home"),
-    # Catch-all for React Router (if using client-side routing)
     path(
-        "<path:path>/",
-        TemplateView.as_view(template_name="index.html"),
-        name="react-routes",
-    ),
+        "debug-settings/", debug_settings, name="debug-settings"
+    ),  # Add this temporarily
+    path("", TemplateView.as_view(template_name="index.html"), name="home"),
 ]
