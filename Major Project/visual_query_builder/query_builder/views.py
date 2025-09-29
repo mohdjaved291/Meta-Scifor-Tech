@@ -8,6 +8,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth.models import User
+from django.db import connection
+from django.conf import settings
 import json
 import hashlib
 import time
@@ -502,163 +504,202 @@ class DatabaseSchemaView(APIView):
         )
 
     def create_sample_sqlite_tables(self):
-        """Create sample tables in SQLite for demonstration"""
-        from django.db import connection
-
+        """Create sample tables - works with both PostgreSQL and SQLite"""
         try:
+            # Get current database engine from Django settings
+            db_engine = settings.DATABASES['default']['ENGINE']
             cursor = connection.cursor()
 
-            # Create sample users table
-            cursor.execute(
-                """
-                CREATE TABLE IF NOT EXISTS sample_users (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name VARCHAR(100) NOT NULL,
-                    email VARCHAR(100) UNIQUE NOT NULL,
-                    age INTEGER,
-                    department VARCHAR(50),
-                    salary DECIMAL(10,2),
-                    hire_date DATE,
-                    is_active BOOLEAN DEFAULT 1
-                )
-            """
-            )
+            if 'postgresql' in db_engine:
+                # PostgreSQL syntax - same as your CreateSampleDataView
+                print("🐘 Creating sample tables for PostgreSQL...")
+                
+                # Drop tables if they exist (PostgreSQL)
+                cursor.execute("DROP TABLE IF EXISTS sample_orders CASCADE")
+                cursor.execute("DROP TABLE IF EXISTS sample_products CASCADE") 
+                cursor.execute("DROP TABLE IF EXISTS sample_users CASCADE")
 
-            # Create sample products table
-            cursor.execute(
-                """
-                CREATE TABLE IF NOT EXISTS sample_products (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name VARCHAR(100) NOT NULL,
-                    category VARCHAR(50),
-                    price DECIMAL(10,2),
-                    stock_quantity INTEGER DEFAULT 0,
-                    description TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """
-            )
+                # Create sample users table (PostgreSQL syntax)
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS sample_users (
+                        id SERIAL PRIMARY KEY,
+                        name VARCHAR(100) NOT NULL,
+                        email VARCHAR(100) UNIQUE NOT NULL,
+                        age INTEGER,
+                        department VARCHAR(50),
+                        salary DECIMAL(10,2),
+                        hire_date DATE,
+                        is_active BOOLEAN DEFAULT TRUE
+                    )
+                """)
 
-            # Create sample orders table
-            cursor.execute(
-                """
-                CREATE TABLE IF NOT EXISTS sample_orders (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER,
-                    product_id INTEGER,
-                    quantity INTEGER DEFAULT 1,
-                    total_price DECIMAL(10,2),
-                    order_date DATE DEFAULT CURRENT_DATE,
-                    status VARCHAR(20) DEFAULT 'pending'
-                )
-            """
-            )
+                # Create sample products table (PostgreSQL syntax)
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS sample_products (
+                        id SERIAL PRIMARY KEY,
+                        name VARCHAR(100) NOT NULL,
+                        category VARCHAR(50),
+                        price DECIMAL(10,2),
+                        stock_quantity INTEGER DEFAULT 0,
+                        description TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
 
-            # Insert sample data if tables are empty
-            cursor.execute("SELECT COUNT(*) FROM sample_users")
-            if cursor.fetchone()[0] == 0:
-                sample_users = [
-                    (
-                        "John Doe",
-                        "john@example.com",
-                        30,
-                        "Engineering",
-                        75000.00,
-                        "2023-01-15",
-                    ),
-                    (
-                        "Jane Smith",
-                        "jane@example.com",
-                        28,
-                        "Marketing",
-                        65000.00,
-                        "2023-02-01",
-                    ),
-                    (
-                        "Bob Johnson",
-                        "bob@example.com",
-                        35,
-                        "Sales",
-                        70000.00,
-                        "2023-01-20",
-                    ),
-                    (
-                        "Alice Brown",
-                        "alice@example.com",
-                        32,
-                        "Engineering",
-                        80000.00,
-                        "2023-03-01",
-                    ),
-                    (
-                        "Charlie Wilson",
-                        "charlie@example.com",
-                        29,
-                        "HR",
-                        60000.00,
-                        "2023-02-15",
-                    ),
-                ]
+                # Create sample orders table (PostgreSQL syntax)
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS sample_orders (
+                        id SERIAL PRIMARY KEY,
+                        user_id INTEGER,
+                        product_id INTEGER,
+                        quantity INTEGER DEFAULT 1,
+                        total_price DECIMAL(10,2),
+                        order_date DATE DEFAULT CURRENT_DATE,
+                        status VARCHAR(20) DEFAULT 'pending'
+                    )
+                """)
 
-                cursor.executemany(
-                    """
-                    INSERT INTO sample_users (name, email, age, department, salary, hire_date)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                """,
-                    sample_users,
-                )
+                # Insert sample data if tables are empty (PostgreSQL uses %s placeholders)
+                cursor.execute("SELECT COUNT(*) FROM sample_users")
+                if cursor.fetchone()[0] == 0:
+                    sample_users = [
+                        ("John Doe", "john@example.com", 30, "Engineering", 75000.00, "2023-01-15"),
+                        ("Jane Smith", "jane@example.com", 28, "Marketing", 65000.00, "2023-02-01"),
+                        ("Bob Johnson", "bob@example.com", 35, "Sales", 70000.00, "2023-01-20"),
+                        ("Alice Brown", "alice@example.com", 32, "Engineering", 80000.00, "2023-03-01"),
+                        ("Charlie Wilson", "charlie@example.com", 29, "HR", 60000.00, "2023-02-15"),
+                    ]
 
-                sample_products = [
-                    (
-                        "Laptop Pro",
-                        "Electronics",
-                        1299.99,
-                        50,
-                        "High-performance laptop",
-                    ),
-                    (
-                        "Wireless Headphones",
-                        "Electronics",
-                        199.99,
-                        100,
-                        "Noise-cancelling headphones",
-                    ),
-                    ("Office Chair", "Furniture", 299.99, 25, "Ergonomic office chair"),
-                    ("Coffee Mug", "Kitchen", 12.99, 200, "Ceramic coffee mug"),
-                    ("Desk Lamp", "Furniture", 79.99, 30, "LED desk lamp"),
-                ]
+                    cursor.executemany("""
+                        INSERT INTO sample_users (name, email, age, department, salary, hire_date)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    """, sample_users)
 
-                cursor.executemany(
-                    """
-                    INSERT INTO sample_products (name, category, price, stock_quantity, description)
-                    VALUES (?, ?, ?, ?, ?)
-                """,
-                    sample_products,
-                )
+                    sample_products = [
+                        ("Laptop Pro", "Electronics", 1299.99, 50, "High-performance laptop"),
+                        ("Wireless Headphones", "Electronics", 199.99, 100, "Noise-cancelling headphones"),
+                        ("Office Chair", "Furniture", 299.99, 25, "Ergonomic office chair"),
+                        ("Coffee Mug", "Kitchen", 12.99, 200, "Ceramic coffee mug"),
+                        ("Desk Lamp", "Furniture", 79.99, 30, "LED desk lamp"),
+                    ]
 
-                sample_orders = [
-                    (1, 1, 1, 1299.99, "2024-01-15", "completed"),
-                    (2, 2, 1, 199.99, "2024-01-16", "completed"),
-                    (3, 3, 2, 599.98, "2024-01-17", "pending"),
-                    (1, 4, 3, 38.97, "2024-01-18", "completed"),
-                    (2, 5, 1, 79.99, "2024-01-19", "shipped"),
-                ]
+                    cursor.executemany("""
+                        INSERT INTO sample_products (name, category, price, stock_quantity, description)
+                        VALUES (%s, %s, %s, %s, %s)
+                    """, sample_products)
 
-                cursor.executemany(
-                    """
-                    INSERT INTO sample_orders (user_id, product_id, quantity, total_price, order_date, status)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                """,
-                    sample_orders,
-                )
+                    sample_orders = [
+                        (1, 1, 1, 1299.99, "2024-01-15", "completed"),
+                        (2, 2, 1, 199.99, "2024-01-16", "completed"),
+                        (3, 3, 2, 599.98, "2024-01-17", "pending"),
+                        (1, 4, 3, 38.97, "2024-01-18", "completed"),
+                        (2, 5, 1, 79.99, "2024-01-19", "shipped"),
+                    ]
 
+                    cursor.executemany("""
+                        INSERT INTO sample_orders (user_id, product_id, quantity, total_price, order_date, status)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    """, sample_orders)
+
+                print("✅ PostgreSQL sample tables created successfully")
+
+            elif 'sqlite' in db_engine:
+                # SQLite syntax (your original code works fine for SQLite)
+                print("📦 Creating sample tables for SQLite...")
+                
+                # Create sample users table (SQLite syntax)
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS sample_users (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name VARCHAR(100) NOT NULL,
+                        email VARCHAR(100) UNIQUE NOT NULL,
+                        age INTEGER,
+                        department VARCHAR(50),
+                        salary DECIMAL(10,2),
+                        hire_date DATE,
+                        is_active BOOLEAN DEFAULT 1
+                    )
+                """)
+
+                # Create sample products table (SQLite syntax)
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS sample_products (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name VARCHAR(100) NOT NULL,
+                        category VARCHAR(50),
+                        price DECIMAL(10,2),
+                        stock_quantity INTEGER DEFAULT 0,
+                        description TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+
+                # Create sample orders table (SQLite syntax)
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS sample_orders (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER,
+                        product_id INTEGER,
+                        quantity INTEGER DEFAULT 1,
+                        total_price DECIMAL(10,2),
+                        order_date DATE DEFAULT CURRENT_DATE,
+                        status VARCHAR(20) DEFAULT 'pending'
+                    )
+                """)
+
+                # Insert sample data if tables are empty (SQLite uses ? placeholders)
+                cursor.execute("SELECT COUNT(*) FROM sample_users")
+                if cursor.fetchone()[0] == 0:
+                    sample_users = [
+                        ("John Doe", "john@example.com", 30, "Engineering", 75000.00, "2023-01-15"),
+                        ("Jane Smith", "jane@example.com", 28, "Marketing", 65000.00, "2023-02-01"),
+                        ("Bob Johnson", "bob@example.com", 35, "Sales", 70000.00, "2023-01-20"),
+                        ("Alice Brown", "alice@example.com", 32, "Engineering", 80000.00, "2023-03-01"),
+                        ("Charlie Wilson", "charlie@example.com", 29, "HR", 60000.00, "2023-02-15"),
+                    ]
+
+                    cursor.executemany("""
+                        INSERT INTO sample_users (name, email, age, department, salary, hire_date)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    """, sample_users)
+
+                    sample_products = [
+                        ("Laptop Pro", "Electronics", 1299.99, 50, "High-performance laptop"),
+                        ("Wireless Headphones", "Electronics", 199.99, 100, "Noise-cancelling headphones"),
+                        ("Office Chair", "Furniture", 299.99, 25, "Ergonomic office chair"),
+                        ("Coffee Mug", "Kitchen", 12.99, 200, "Ceramic coffee mug"),
+                        ("Desk Lamp", "Furniture", 79.99, 30, "LED desk lamp"),
+                    ]
+
+                    cursor.executemany("""
+                        INSERT INTO sample_products (name, category, price, stock_quantity, description)
+                        VALUES (?, ?, ?, ?, ?)
+                    """, sample_products)
+
+                    sample_orders = [
+                        (1, 1, 1, 1299.99, "2024-01-15", "completed"),
+                        (2, 2, 1, 199.99, "2024-01-16", "completed"),
+                        (3, 3, 2, 599.98, "2024-01-17", "pending"),
+                        (1, 4, 3, 38.97, "2024-01-18", "completed"),
+                        (2, 5, 1, 79.99, "2024-01-19", "shipped"),
+                    ]
+
+                    cursor.executemany("""
+                        INSERT INTO sample_orders (user_id, product_id, quantity, total_price, order_date, status)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    """, sample_orders)
+
+                print("✅ SQLite sample tables created successfully")
+
+            else:
+                print(f"⚠️ Unsupported database engine: {db_engine}")
+                
             cursor.close()
-            print("✅ Sample SQLite tables created successfully")
 
         except Exception as e:
-            print(f"Error creating sample SQLite tables: {e}")
-            pass  # Don't fail if SQLite tables can't be created
-
+            print(f"❌ Error creating sample tables: {e}")
+            # Don't fail completely, just log the error
+            pass
 
 class QueryBuilderView(APIView):
     def __init__(self):
@@ -931,106 +972,634 @@ class PerformanceAnalyticsView(APIView):
 
 
 class CreateSampleDataView(APIView):
-    """
-    API endpoint to create sample data for testing
-    Visit: /api/create-sample-data/ to set up sample database connections
-    """
+    """Create sample database connection with proper database-specific syntax"""
 
     def get(self, request):
         try:
-            # Create sample SQLite connection
-            sqlite_conn, created = DatabaseConnection.objects.get_or_create(
-                name="Sample SQLite Database",
-                defaults={
-                    "host": "localhost",
-                    "port": 0,
-                    "database": "sample_data.db",
-                    "username": "sqlite",
-                    "password": "",
-                    "engine": "sqlite",
-                },
-            )
+            # Get current database engine
+            db_engine = settings.DATABASES["default"]["ENGINE"]
 
-            results = {
-                "success": True,
-                "message": "Sample data created successfully!",
-                "connections_created": [],
-                "admin_user": None,
-                "next_steps": [
-                    "Go to your app homepage",
-                    'Select "Sample SQLite Database" from dropdown',
-                    "Start building queries with drag & drop!",
-                    "Try dragging tables and columns to build SQL queries",
-                ],
-            }
-
-            if created:
-                results["connections_created"].append(
-                    {
-                        "name": sqlite_conn.name,
-                        "engine": sqlite_conn.engine,
-                        "status": "Created",
-                    }
-                )
+            # Create appropriate database connection based on engine
+            if "postgresql" in db_engine:
+                return self._create_postgresql_sample_data()
+            elif "sqlite" in db_engine:
+                return self._create_sqlite_sample_data()
             else:
-                results["connections_created"].append(
+                return Response(
                     {
-                        "name": sqlite_conn.name,
-                        "engine": sqlite_conn.engine,
-                        "status": "Already exists",
-                    }
-                )
-
-            # Try to create PostgreSQL connection if environment variables exist
-            db_host = os.environ.get("DB_HOST")
-            db_user = os.environ.get("DB_USER")
-            db_password = os.environ.get("DB_PASSWORD")
-
-            if db_host and db_user and db_password:
-                pg_conn, pg_created = DatabaseConnection.objects.get_or_create(
-                    name="Supabase PostgreSQL (Backup)",
-                    defaults={
-                        "host": db_host,
-                        "port": int(os.environ.get("DB_PORT", 6543)),
-                        "database": os.environ.get("DB_NAME", "postgres"),
-                        "username": db_user,
-                        "password": db_password,
-                        "engine": "postgresql",
+                        "error": f"Unsupported database engine: {db_engine}",
+                        "supported_engines": ["postgresql", "sqlite"],
                     },
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
-
-                results["connections_created"].append(
-                    {
-                        "name": pg_conn.name,
-                        "engine": pg_conn.engine,
-                        "status": "Created" if pg_created else "Already exists",
-                    }
-                )
-
-            # Create admin user if not exists
-            if not User.objects.filter(username="admin").exists():
-                admin_user = User.objects.create_superuser(
-                    username="admin", email="admin@example.com", password="admin123"
-                )
-                results["admin_user"] = {
-                    "username": "admin",
-                    "password": "admin123",
-                    "status": "Created",
-                }
-            else:
-                results["admin_user"] = {
-                    "username": "admin",
-                    "status": "Already exists",
-                }
-
-            return Response(results, status=status.HTTP_200_OK)
 
         except Exception as e:
             return Response(
                 {
-                    "success": False,
-                    "error": str(e),
-                    "message": "Failed to create sample data",
+                    "error": f"Failed to create sample data: {str(e)}",
+                    "debug_info": {
+                        "database_engine": settings.DATABASES["default"]["ENGINE"],
+                        "database_name": settings.DATABASES["default"]["NAME"],
+                    },
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    def _create_postgresql_sample_data(self):
+        """Create sample data for PostgreSQL"""
+        try:
+            with connection.cursor() as cursor:
+                # Drop tables if they exist (PostgreSQL syntax)
+                cursor.execute("DROP TABLE IF EXISTS sample_orders CASCADE")
+                cursor.execute("DROP TABLE IF EXISTS sample_products CASCADE")
+                cursor.execute("DROP TABLE IF EXISTS sample_customers CASCADE")
+                cursor.execute("DROP TABLE IF EXISTS sample_users CASCADE")
+                cursor.execute("DROP TABLE IF EXISTS sample_departments CASCADE")
+
+                # Create departments table (PostgreSQL syntax)
+                cursor.execute(
+                    """
+                    CREATE TABLE sample_departments (
+                        id SERIAL PRIMARY KEY,
+                        name VARCHAR(100) NOT NULL,
+                        budget DECIMAL(12,2),
+                        head_count INTEGER DEFAULT 0,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """
+                )
+
+                # Create users table (PostgreSQL syntax)
+                cursor.execute(
+                    """
+                    CREATE TABLE sample_users (
+                        id SERIAL PRIMARY KEY,
+                        name VARCHAR(100) NOT NULL,
+                        email VARCHAR(100) UNIQUE NOT NULL,
+                        age INTEGER,
+                        department VARCHAR(50),
+                        salary DECIMAL(10,2),
+                        hire_date DATE,
+                        is_active BOOLEAN DEFAULT TRUE
+                    )
+                """
+                )
+
+                # Create products table
+                cursor.execute(
+                    """
+                    CREATE TABLE sample_products (
+                        id SERIAL PRIMARY KEY,
+                        name VARCHAR(100) NOT NULL,
+                        category VARCHAR(50),
+                        price DECIMAL(10,2),
+                        stock_quantity INTEGER DEFAULT 0,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """
+                )
+
+                # Create customers table
+                cursor.execute(
+                    """
+                    CREATE TABLE sample_customers (
+                        id SERIAL PRIMARY KEY,
+                        name VARCHAR(100) NOT NULL,
+                        email VARCHAR(100) UNIQUE,
+                        phone VARCHAR(20),
+                        city VARCHAR(50),
+                        registration_date DATE DEFAULT CURRENT_DATE
+                    )
+                """
+                )
+
+                # Create orders table with foreign key
+                cursor.execute(
+                    """
+                    CREATE TABLE sample_orders (
+                        id SERIAL PRIMARY KEY,
+                        customer_id INTEGER REFERENCES sample_customers(id),
+                        product_id INTEGER REFERENCES sample_products(id),
+                        quantity INTEGER DEFAULT 1,
+                        order_date DATE DEFAULT CURRENT_DATE,
+                        total_amount DECIMAL(10,2)
+                    )
+                """
+                )
+
+                # Insert sample data
+                self._insert_sample_data(cursor, "postgresql")
+
+            # Create Django DatabaseConnection record
+            db_connection, created = DatabaseConnection.objects.get_or_create(
+                name="Sample PostgreSQL Database",
+                defaults={
+                    "engine": "postgresql",
+                    "host": settings.DATABASES["default"].get("HOST", "localhost"),
+                    "port": settings.DATABASES["default"].get("PORT", 5432),
+                    "database": settings.DATABASES["default"].get("NAME", "postgres"),
+                    "username": settings.DATABASES["default"].get("USER", "postgres"),
+                    "password": settings.DATABASES["default"].get("PASSWORD", ""),
+                },
+            )
+
+            return Response(
+                {
+                    "success": True,
+                    "message": "Sample PostgreSQL data created successfully!",
+                    "database_engine": "postgresql",
+                    "tables_created": [
+                        "sample_departments (8 records)",
+                        "sample_users (25 records)",
+                        "sample_products (50 records)",
+                        "sample_customers (30 records)",
+                        "sample_orders (100 records)",
+                    ],
+                    "connection_id": db_connection.id,
+                    "next_steps": [
+                        "Select 'Sample PostgreSQL Database' in your query builder",
+                        "Start building queries with drag & drop!",
+                    ],
+                }
+            )
+
+        except Exception as e:
+            return Response(
+                {"error": f"PostgreSQL sample data creation failed: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    def _create_sqlite_sample_data(self):
+        """Create sample data for SQLite"""
+        try:
+            with connection.cursor() as cursor:
+                # SQLite syntax
+                cursor.execute("DROP TABLE IF EXISTS sample_orders")
+                cursor.execute("DROP TABLE IF EXISTS sample_products")
+                cursor.execute("DROP TABLE IF EXISTS sample_customers")
+                cursor.execute("DROP TABLE IF EXISTS sample_users")
+                cursor.execute("DROP TABLE IF EXISTS sample_departments")
+
+                # Create tables with SQLite syntax
+                cursor.execute(
+                    """
+                    CREATE TABLE sample_departments (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name VARCHAR(100) NOT NULL,
+                        budget DECIMAL(12,2),
+                        head_count INTEGER DEFAULT 0,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
+                """
+                )
+
+                cursor.execute(
+                    """
+                    CREATE TABLE sample_users (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name VARCHAR(100) NOT NULL,
+                        email VARCHAR(100) UNIQUE NOT NULL,
+                        age INTEGER,
+                        department VARCHAR(50),
+                        salary DECIMAL(10,2),
+                        hire_date DATE,
+                        is_active BOOLEAN DEFAULT 1
+                    )
+                """
+                )
+
+                # Continue with other tables...
+                cursor.execute(
+                    """
+                    CREATE TABLE sample_products (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name VARCHAR(100) NOT NULL,
+                        category VARCHAR(50),
+                        price DECIMAL(10,2),
+                        stock_quantity INTEGER DEFAULT 0,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
+                """
+                )
+
+                cursor.execute(
+                    """
+                    CREATE TABLE sample_customers (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name VARCHAR(100) NOT NULL,
+                        email VARCHAR(100) UNIQUE,
+                        phone VARCHAR(20),
+                        city VARCHAR(50),
+                        registration_date DATE DEFAULT CURRENT_DATE
+                    )
+                """
+                )
+
+                cursor.execute(
+                    """
+                    CREATE TABLE sample_orders (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        customer_id INTEGER,
+                        product_id INTEGER,
+                        quantity INTEGER DEFAULT 1,
+                        order_date DATE DEFAULT CURRENT_DATE,
+                        total_amount DECIMAL(10,2),
+                        FOREIGN KEY (customer_id) REFERENCES sample_customers(id),
+                        FOREIGN KEY (product_id) REFERENCES sample_products(id)
+                    )
+                """
+                )
+
+                # Insert sample data
+                self._insert_sample_data(cursor, "sqlite")
+
+            # Create Django DatabaseConnection record
+            db_connection, created = DatabaseConnection.objects.get_or_create(
+                name="Sample SQLite Database",
+                defaults={
+                    "engine": "sqlite",
+                    "host": "localhost",
+                    "port": 0,
+                    "database": str(settings.DATABASES["default"]["NAME"]),
+                    "username": "sqlite",
+                    "password": "",
+                },
+            )
+
+            return Response(
+                {
+                    "success": True,
+                    "message": "Sample SQLite data created successfully!",
+                    "database_engine": "sqlite",
+                    "tables_created": [
+                        "sample_departments (8 records)",
+                        "sample_users (25 records)",
+                        "sample_products (50 records)",
+                        "sample_customers (30 records)",
+                        "sample_orders (100 records)",
+                    ],
+                    "connection_id": db_connection.id,
+                }
+            )
+
+        except Exception as e:
+            return Response(
+                {"error": f"SQLite sample data creation failed: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    def _insert_sample_data(self, cursor, db_type):
+        """Insert sample data (works for both PostgreSQL and SQLite)"""
+
+        # Insert departments
+        departments_data = [
+            ("Engineering", 1500000.00, 45),
+            ("Marketing", 800000.00, 25),
+            ("Sales", 1200000.00, 35),
+            ("HR", 600000.00, 15),
+            ("Finance", 900000.00, 20),
+            ("Operations", 700000.00, 30),
+            ("Product", 1100000.00, 28),
+            ("Customer Support", 500000.00, 22),
+        ]
+
+        for dept in departments_data:
+            cursor.execute(
+                (
+                    """
+                INSERT INTO sample_departments (name, budget, head_count)
+                VALUES (%s, %s, %s)
+            """
+                    if db_type == "postgresql"
+                    else """
+                INSERT INTO sample_departments (name, budget, head_count)
+                VALUES (?, ?, ?)
+            """
+                ),
+                dept,
+            )
+
+        # Insert users
+        users_data = [
+            (
+                "John Doe",
+                "john.doe@company.com",
+                28,
+                "Engineering",
+                85000.00,
+                "2023-01-15",
+                True,
+            ),
+            (
+                "Jane Smith",
+                "jane.smith@company.com",
+                32,
+                "Marketing",
+                72000.00,
+                "2022-11-20",
+                True,
+            ),
+            (
+                "Bob Johnson",
+                "bob.johnson@company.com",
+                45,
+                "Sales",
+                95000.00,
+                "2021-06-10",
+                True,
+            ),
+            (
+                "Alice Brown",
+                "alice.brown@company.com",
+                29,
+                "Engineering",
+                88000.00,
+                "2023-03-01",
+                True,
+            ),
+            (
+                "Charlie Wilson",
+                "charlie.wilson@company.com",
+                38,
+                "Finance",
+                78000.00,
+                "2022-08-15",
+                True,
+            ),
+            (
+                "Diana Martinez",
+                "diana.martinez@company.com",
+                26,
+                "HR",
+                65000.00,
+                "2023-05-20",
+                True,
+            ),
+            (
+                "Frank Thompson",
+                "frank.thompson@company.com",
+                41,
+                "Operations",
+                82000.00,
+                "2021-12-03",
+                True,
+            ),
+            (
+                "Grace Lee",
+                "grace.lee@company.com",
+                33,
+                "Product",
+                92000.00,
+                "2022-09-18",
+                True,
+            ),
+            (
+                "Henry Davis",
+                "henry.davis@company.com",
+                36,
+                "Engineering",
+                90000.00,
+                "2022-04-22",
+                True,
+            ),
+            (
+                "Ivy Chen",
+                "ivy.chen@company.com",
+                27,
+                "Marketing",
+                69000.00,
+                "2023-07-08",
+                True,
+            ),
+            (
+                "Jack Williams",
+                "jack.williams@company.com",
+                44,
+                "Sales",
+                98000.00,
+                "2021-10-14",
+                True,
+            ),
+            (
+                "Kelly Rodriguez",
+                "kelly.rodriguez@company.com",
+                31,
+                "Customer Support",
+                58000.00,
+                "2022-12-05",
+                True,
+            ),
+            (
+                "Liam O Connor",
+                "liam.oconnor@company.com",
+                25,
+                "Engineering",
+                79000.00,
+                "2023-08-12",
+                True,
+            ),
+            (
+                "Mia Garcia",
+                "mia.garcia@company.com",
+                30,
+                "Product",
+                87000.00,
+                "2022-07-30",
+                True,
+            ),
+            (
+                "Noah Kim",
+                "noah.kim@company.com",
+                39,
+                "Finance",
+                81000.00,
+                "2021-11-25",
+                True,
+            ),
+            (
+                "Olivia Taylor",
+                "olivia.taylor@company.com",
+                28,
+                "HR",
+                67000.00,
+                "2023-02-14",
+                True,
+            ),
+            (
+                "Paul Anderson",
+                "paul.anderson@company.com",
+                42,
+                "Operations",
+                84000.00,
+                "2021-09-07",
+                True,
+            ),
+            (
+                "Quinn White",
+                "quinn.white@company.com",
+                34,
+                "Sales",
+                93000.00,
+                "2022-05-16",
+                True,
+            ),
+            (
+                "Rachel Green",
+                "rachel.green@company.com",
+                29,
+                "Marketing",
+                71000.00,
+                "2023-04-03",
+                True,
+            ),
+            (
+                "Sam Miller",
+                "sam.miller@company.com",
+                37,
+                "Engineering",
+                91000.00,
+                "2022-01-28",
+                True,
+            ),
+            (
+                "Tina Kumar",
+                "tina.kumar@company.com",
+                26,
+                "Customer Support",
+                59000.00,
+                "2023-06-19",
+                True,
+            ),
+            (
+                "Uma Patel",
+                "uma.patel@company.com",
+                35,
+                "Product",
+                89000.00,
+                "2022-03-11",
+                True,
+            ),
+            (
+                "Victor Lopez",
+                "victor.lopez@company.com",
+                40,
+                "Finance",
+                83000.00,
+                "2021-08-29",
+                True,
+            ),
+            (
+                "Wendy Clark",
+                "wendy.clark@company.com",
+                32,
+                "Operations",
+                77000.00,
+                "2022-10-06",
+                True,
+            ),
+            (
+                "Xavier Young",
+                "xavier.young@company.com",
+                43,
+                "Sales",
+                96000.00,
+                "2021-07-21",
+                True,
+            ),
+        ]
+
+        for user in users_data:
+            cursor.execute(
+                (
+                    """
+                INSERT INTO sample_users (name, email, age, department, salary, hire_date, is_active)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """
+                    if db_type == "postgresql"
+                    else """
+                INSERT INTO sample_users (name, email, age, department, salary, hire_date, is_active)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """
+                ),
+                user,
+            )
+
+        # Insert products (simplified for brevity)
+        products_data = [
+            ('Laptop Pro 15"', "Electronics", 1299.99, 45),
+            ("Wireless Mouse", "Electronics", 29.99, 120),
+            ("Mechanical Keyboard", "Electronics", 149.99, 67),
+            ("4K Monitor", "Electronics", 399.99, 23),
+            ("Office Chair", "Furniture", 249.99, 15),
+            ("Standing Desk", "Furniture", 499.99, 8),
+            ("Noise-Canceling Headphones", "Electronics", 199.99, 34),
+            ("Smartphone Case", "Accessories", 19.99, 200),
+            ("USB-C Hub", "Electronics", 79.99, 89),
+            ("Tablet Stand", "Accessories", 39.99, 156),
+        ]
+
+        for product in products_data:
+            cursor.execute(
+                (
+                    """
+                INSERT INTO sample_products (name, category, price, stock_quantity)
+                VALUES (%s, %s, %s, %s)
+            """
+                    if db_type == "postgresql"
+                    else """
+                INSERT INTO sample_products (name, category, price, stock_quantity)
+                VALUES (?, ?, ?, ?)
+            """
+                ),
+                product,
+            )
+
+        # Insert customers (simplified)
+        customers_data = [
+            ("Tech Corp", "contact@techcorp.com", "+1-555-0101", "San Francisco"),
+            ("StartupXYZ", "hello@startupxyz.com", "+1-555-0102", "Austin"),
+            ("Enterprise Inc", "sales@enterprise.com", "+1-555-0103", "New York"),
+            ("Small Business LLC", "info@smallbiz.com", "+1-555-0104", "Chicago"),
+            ("Global Solutions", "contact@global.com", "+1-555-0105", "Los Angeles"),
+        ]
+
+        for customer in customers_data:
+            cursor.execute(
+                (
+                    """
+                INSERT INTO sample_customers (name, email, phone, city)
+                VALUES (%s, %s, %s, %s)
+            """
+                    if db_type == "postgresql"
+                    else """
+                INSERT INTO sample_customers (name, email, phone, city)
+                VALUES (?, ?, ?, ?)
+            """
+                ),
+                customer,
+            )
+
+        # Insert orders (simplified)
+        orders_data = [
+            (1, 1, 2, "2023-09-01", 2599.98),
+            (2, 3, 1, "2023-09-02", 149.99),
+            (3, 2, 3, "2023-09-03", 89.97),
+            (1, 4, 1, "2023-09-04", 399.99),
+            (4, 5, 1, "2023-09-05", 249.99),
+        ]
+
+        for order in orders_data:
+            cursor.execute(
+                (
+                    """
+                INSERT INTO sample_orders (customer_id, product_id, quantity, order_date, total_amount)
+                VALUES (%s, %s, %s, %s, %s)
+            """
+                    if db_type == "postgresql"
+                    else """
+                INSERT INTO sample_orders (customer_id, product_id, quantity, order_date, total_amount)
+                VALUES (?, ?, ?, ?, ?)
+            """
+                ),
+                order,
             )
